@@ -4,8 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import '../databases/category.dart';
 import 'dialog_box.dart';
+import '../utils/widgets/app_bars.dart';
 
 class CategoriesPage extends StatefulWidget {
+  const CategoriesPage({super.key});
   @override
   State<CategoriesPage> createState() => _CategoriesPageState();
 }
@@ -33,13 +35,11 @@ class _CategoriesPageState extends State<CategoriesPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Categories'),
-      ),
+      appBar: const MinimalAppBar(title: 'Categories'),
       floatingActionButton: FloatingActionButton(
         onPressed: _addNewCategory,
-        backgroundColor: Colors.redAccent,
-        child: Icon(Icons.add),
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        child: const Icon(Icons.add),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.endTop,
       body: Container(
@@ -74,8 +74,8 @@ class _CategoriesPageState extends State<CategoriesPage> {
                           _selectedCategory = categories[index];
                         });
                       },
-                      backgroundColor: Colors.grey,
-                      foregroundColor: Colors.white,
+                      backgroundColor: Theme.of(context).colorScheme.primary,
+                      foregroundColor: Theme.of(context).colorScheme.onPrimary,
                       borderRadius: BorderRadius.only(
                         topLeft: Radius.circular(5),
                         bottomLeft: Radius.circular(5),
@@ -90,8 +90,8 @@ class _CategoriesPageState extends State<CategoriesPage> {
                       onPressed: (context) {
                         _confirmDelete(context, categories[index]);
                       },
-                      backgroundColor: Colors.red,
-                      foregroundColor: Colors.white,
+                      backgroundColor: Theme.of(context).colorScheme.error,
+                      foregroundColor: Theme.of(context).colorScheme.onError,
                       borderRadius: BorderRadius.only(
                         topRight: Radius.circular(5),
                         bottomRight: Radius.circular(5),
@@ -110,7 +110,6 @@ class _CategoriesPageState extends State<CategoriesPage> {
   }
 
   Widget _buildCategoryCard(category) {
-    print(category.categoryName);
     return Row(
       children: [
         SizedBox(width: 10),
@@ -151,11 +150,12 @@ class _CategoriesPageState extends State<CategoriesPage> {
 
   void _deleteCategory(BuildContext context, int categoryId) async {
     await _dbHelper.deleteCategory(categoryId);
+    if (!mounted) return;
     _fetchCategories();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Category deleted successfully!'),
-        backgroundColor: Colors.grey,
+        content: const Text('Category deleted successfully!'),
+        backgroundColor: Theme.of(context).colorScheme.primary,
       ),
     );
   }
@@ -192,16 +192,17 @@ class _CategoriesPageState extends State<CategoriesPage> {
     ); // Add your logic to add a new category here
   }
 
-  void saveNewCategory() {
-    _dbHelper.addCategory(_categoryNamecontroller.text
+  void saveNewCategory() async {
+    await _dbHelper.addCategory(_categoryNamecontroller.text
         .replaceAll(RegExp('[^A-Za-z0-9]'), '')
         .trim()
         .capitalize());
+    if (!mounted) return;
     _fetchCategories();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Category added successfully!'),
-        backgroundColor: Colors.grey[800],
+        content: const Text('Category added successfully!'),
+        backgroundColor: Theme.of(context).colorScheme.primary,
       ),
     );
     Navigator.of(context).pop();
@@ -214,11 +215,12 @@ class _CategoriesPageState extends State<CategoriesPage> {
             .replaceAll(RegExp('[^A-Za-z0-9]'), '')
             .trim()
             .capitalize());
+    if (!mounted) return;
     _fetchCategories();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Category updated successfully!'),
-        backgroundColor: Colors.grey[800],
+        content: const Text('Category updated successfully!'),
+        backgroundColor: Theme.of(context).colorScheme.primary,
       ),
     );
     Navigator.of(context).pop();

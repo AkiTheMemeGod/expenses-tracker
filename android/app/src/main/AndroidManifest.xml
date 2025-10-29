@@ -5,9 +5,27 @@
        <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
     <uses-permission android:name="android.permission.ACCESS_MEDIA_LOCATION" />
     <application
-        android:label="expenses_tracker"
+        android:label="SpendIt"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
+
+        <!-- App Widget Provider -->
+        <receiver
+            android:name=".AddTransactionWidgetProvider"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/add_transaction_widget_info" />
+        </receiver>
+
+        <activity
+            android:name=".AddTransactionConfigActivity"
+            android:exported="false"
+            android:theme="@android:style/Theme.Material.Light.NoActionBar">
+        </activity>
         <activity
             android:name=".MainActivity"
             android:exported="true"

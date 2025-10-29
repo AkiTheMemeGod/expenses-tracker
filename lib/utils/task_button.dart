@@ -2,9 +2,9 @@ import "package:flutter/material.dart";
 
 class TaskButton extends StatelessWidget {
   final String text;
+  final VoidCallback onPressed;
 
-  VoidCallback onPressed;
-  TaskButton({
+  const TaskButton({
     super.key,
     required this.text,
     required this.onPressed,
@@ -12,8 +12,7 @@ class TaskButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialButton(
-      color: Theme.of(context).primaryColor,
+    return ElevatedButton(
       onPressed: onPressed,
       child: Text(text),
     );

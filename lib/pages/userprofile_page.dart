@@ -2,14 +2,15 @@ import 'dart:io';
 
 import 'package:expenses_tracker/databases/database_helper.dart';
 import 'package:expenses_tracker/pages/home_page.dart';
-import 'package:expenses_tracker/pages/settings_page.dart';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
+import '../utils/widgets/app_bars.dart';
 
 class UserProfilePage extends StatefulWidget {
+  const UserProfilePage({super.key});
   @override
-  _UserProfilePageState createState() => _UserProfilePageState();
+  State<UserProfilePage> createState() => _UserProfilePageState();
 }
 
 class _UserProfilePageState extends State<UserProfilePage> {
@@ -18,8 +19,8 @@ class _UserProfilePageState extends State<UserProfilePage> {
 
   bool isDarkMode = false;
   bool isNotificationsEnabled = true;
-  String? _imagePath; // Declare _imagePath here
-  File? _selectedImage;
+  // String? _imagePath; // reserved for future profile image storage
+  // File? _selectedImage;
   late String _username;
   late String _email;
   late String _mobile;
@@ -41,8 +42,8 @@ class _UserProfilePageState extends State<UserProfilePage> {
 
   Future<void> _openImagePicker() async {
     // await Permission.photos.request();
-    final status = await Permission.photos.request();
-    final storageStatus = await Permission.storage.request();
+    await Permission.photos.request();
+    await Permission.storage.request();
     await Permission.camera.request();
 
     if (Platform.isAndroid) {
@@ -72,10 +73,11 @@ class _UserProfilePageState extends State<UserProfilePage> {
     }
   }
 
+  @override
   void initState() {
     super.initState();
     _getRowsCount();
-    var profilelcl = _fetchProfile();
+    _fetchProfile();
 
     _username = _profile['userName'].toString().isNotEmpty
         ? _profile['userName'].toString()
@@ -125,36 +127,28 @@ class _UserProfilePageState extends State<UserProfilePage> {
       _formKey.currentState!.save();
 
       if (profileRows == 0) {
-        // Insert new profile
         await _dbHelper.saveProfile(_username, _email, _mobile);
       } else {
-        // Insert new profile
         await _dbHelper.updateProfile(_username, _email, _mobile);
       }
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Profile saved successfully!'),
-          backgroundColor: Colors.grey,
+          content: const Text('Profile saved successfully!'),
+          backgroundColor: Theme.of(context).colorScheme.primary,
         ),
       );
 
-      // Reset form fields and state variables
-      // _formKey.currentState!.reset();
       setState(() {
         _username = '';
         _email = '';
         _mobile = '';
       });
 
-      // Redirect to TransactionsPage
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (context) => HomePage(
-            body: SettingsPage(),
-            currentIndex: 4,
-          ),
+          builder: (context) => const HomePage(initialIndex: 4),
         ),
       );
     }
@@ -163,9 +157,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Profile Settings'),
-      ),
+      appBar: const MinimalAppBar(title: 'Profile Settings'),
       body: SingleChildScrollView(
         padding: EdgeInsets.all(16.0),
         child: Form(
@@ -190,9 +182,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
                           color: Colors.blue,
                         ),
                         onPressed: () {
-                          // Handle profile picture update
-                          // You can use a file picker to select an image
-                          _openImagePicker();
+                            _openImagePicker();
                         },
                       ),
                     ),
@@ -291,11 +281,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
 upload an user image and save into the assets folder
 */
   uploadImage() async {
-    final directory = await getStorageDirectory();
-    final imagePath = '$directory/profile_picture.jpg';
-    // save the image to the assets folder
-    setState(() {
-      _imagePath = imagePath;
-    });
+    // TODO: Handle saving the image using image_picker
+    await getStorageDirectory();
   }
 }

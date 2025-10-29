@@ -3,118 +3,113 @@ import 'package:expenses_tracker/pages/subcategories_page.dart';
 import 'package:expenses_tracker/pages/userprofile_page.dart';
 import 'package:flutter/material.dart';
 import 'package:text_scroll/text_scroll.dart';
-// import '../databases/database_helper.dart';
+import '../utils/widgets/app_bars.dart';
+
+import 'package:expenses_tracker/theme/theme_controller.dart';
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
 
-  // final DatabaseHelper _dbHelper = DatabaseHelper();
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[200],
-      appBar: AppBar(
-        title: Text('Settings'),
-        backgroundColor: Colors.red,
-        toolbarHeight: 45,
-        foregroundColor: Colors.white,
-      ),
-      body: Container(
-        color: Colors.grey[200],
+      appBar: const MinimalAppBar(title: 'Settings'),
+      body: SafeArea(
         child: ListView(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
           children: [
-            SizedBox(height: 20),
-            Center(
-              child: SizedBox(
-                width: 165, // Fixed width
-                height: 130,
-                child: Card(
-                  child: Column(
-                    children: [
-                      SizedBox(height: 15),
-                      Icon(Icons.person, size: 50),
-                      ListTile(
-                        title:
-                            Text('User Profile', textAlign: TextAlign.center),
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (context) => UserProfilePage()),
-                          );
-                        },
-                      ),
-                    ],
-                  ),
-                ),
+            // Theme section
+            Card(
+              child: AnimatedBuilder(
+                animation: ThemeController.instance,
+                builder: (context, _) {
+                  final current = ThemeController.instance.mode;
+                  final dark = current == ThemeMode.dark;
+                  return SwitchListTile(
+                    title: const Text('Dark Mode'),
+                    value: dark,
+                    onChanged: (val) => ThemeController.instance.toggle(val),
+                    secondary: const Icon(Icons.brightness_6),
+                  );
+                },
               ),
             ),
-            SizedBox(height: 20),
-            Center(
-              child: SizedBox(
-                width: 165, // Fixed width
-                height: 130,
-                child: Card(
-                  child: Column(
-                    children: [
-                      SizedBox(height: 15),
-                      Icon(Icons.category, size: 50),
-                      ListTile(
-                        title: Text('Categories', textAlign: TextAlign.center),
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (context) => CategoriesPage()),
-                          );
-                        },
+            const SizedBox(height: 12),
+            // Quick links - responsive wrap
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final width = constraints.maxWidth;
+                int columns = 2;
+                if (width >= 900) columns = 3; // desktop
+                if (width < 360) columns = 1;   // very narrow
+                const spacing = 12.0;
+                final itemWidth = (width - spacing * (columns - 1)) / columns;
+
+                Widget linkCard(IconData icon, String label, VoidCallback onTap) {
+                  return SizedBox(
+                    width: itemWidth,
+                    child: Card(
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(12),
+                        onTap: onTap,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(icon, size: 32),
+                              const SizedBox(height: 10),
+                              Text(label, textAlign: TextAlign.center),
+                            ],
+                          ),
+                        ),
                       ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            SizedBox(height: 20),
-            Center(
-              child: SizedBox(
-                width: 165, // Fixed width
-                height: 130,
-                child: Card(
-                  child: Column(
-                    children: [
-                      SizedBox(height: 15),
-                      Icon(Icons.subdirectory_arrow_right, size: 50),
-                      ListTile(
-                        title:
-                            Text('Subcategories', textAlign: TextAlign.center),
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (context) => SubcategoriesPage()),
-                          );
-                        },
+                    ),
+                  );
+                }
+
+                return Wrap(
+                  spacing: spacing,
+                  runSpacing: spacing,
+                  children: [
+                    linkCard(
+                      Icons.person,
+                      'User Profile',
+                      () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const UserProfilePage()),
                       ),
-                    ],
-                  ),
-                ),
-              ),
+                    ),
+                    linkCard(
+                      Icons.category,
+                      'Categories',
+                      () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const CategoriesPage()),
+                      ),
+                    ),
+                    linkCard(
+                      Icons.subdirectory_arrow_right,
+                      'Subcategories',
+                      () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const SubcategoriesPage()),
+                      ),
+                    ),
+                  ],
+                );
+              },
             ),
-            SizedBox(height: 100),
-            // TextScroll('Developed By Kumar Sundaram'),
+            const SizedBox(height: 60),
             TextScroll(
               textAlign: TextAlign.end,
               'Daily Expenses Tracker developed By Kumar Sundaram. Copyright © 2025. All rights reserved.',
               velocity: const Velocity(pixelsPerSecond: Offset(25, 0)),
               delayBefore: const Duration(milliseconds: 500),
-              // numberOfReps: 5,
               pauseBetween: const Duration(milliseconds: 50),
-              style: const TextStyle(color: Colors.black, fontSize: 10),
+              style: Theme.of(context).textTheme.bodySmall,
               selectable: true,
-              // mode: TextScrollMode.bouncing,
-              // overflow: TextOverflow.ellipsis,
-            )
+            ),
           ],
         ),
       ),

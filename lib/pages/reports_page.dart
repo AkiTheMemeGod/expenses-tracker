@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../databases/database_helper.dart';
+import '../utils/widgets/app_bars.dart';
+import '../utils/widgets/primary_button.dart';
 
 class ReportsPage extends StatefulWidget {
+  const ReportsPage({super.key});
   @override
-  _ReportsPageState createState() => _ReportsPageState();
+  State<ReportsPage> createState() => _ReportsPageState();
 }
 
 class _ReportsPageState extends State<ReportsPage> {
@@ -97,257 +100,154 @@ class _ReportsPageState extends State<ReportsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Reports'),
-        backgroundColor: Colors.red,
-        toolbarHeight: 45,
-        foregroundColor: Colors.white,
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
+      appBar: const MinimalAppBar(title: 'Reports'),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(12),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _dateFilters(context),
-            SizedBox(height: 16),
-            _transactionType(context),
-            SizedBox(height: 16),
-            Expanded(
-              child: SingleChildScrollView(
-                  scrollDirection: Axis.vertical,
-                  child: Column(
-                    children: [
-                      if (_filterOption != 'Income' && _transactions.isNotEmpty)
-                        _generateExpenseChart(),
-                      SizedBox(height: 16),
-                      _generateDataTable(context),
-                    ],
-                  )),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => _selectDate(context, true),
+                    icon: const Icon(Icons.date_range),
+                    label: Text(_fromDate == null
+                        ? 'From date'
+                        : DateFormat('yyyy-MM-dd').format(_fromDate!)),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => _selectDate(context, false),
+                    icon: const Icon(Icons.date_range),
+                    label: Text(_toDate == null
+                        ? 'To date'
+                        : DateFormat('yyyy-MM-dd').format(_toDate!)),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            SegmentedButton<String>(
+              segments: const [
+                ButtonSegment(value: 'Both', label: Text('Both')),
+                ButtonSegment(value: 'Income', label: Text('Income')),
+                ButtonSegment(value: 'Expenses', label: Text('Expenses')),
+              ],
+              selected: {_filterOption},
+              onSelectionChanged: (s) {
+                setState(() => _filterOption = s.first);
+              },
+            ),
+            const SizedBox(height: 12),
+            Align(
+              alignment: Alignment.centerRight,
+              child: PrimaryButton(
+                text: 'Fetch',
+                icon: Icons.refresh,
+                onPressed: _fetchTransactions,
+              ),
+            ),
+            const SizedBox(height: 12),
+            if (_expenseSpots.isEmpty)
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Text(
+                    'No data for selected range',
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                ),
+              )
+            else
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: SizedBox(
+                    height: 260,
+                    child: LineChart(
+                      LineChartData(
+                        gridData: FlGridData(
+                          show: true,
+                          drawVerticalLine: false,
+                          horizontalInterval: interval,
+                          getDrawingHorizontalLine: (value) => FlLine(
+                            color: Theme.of(context)
+                                .colorScheme
+                                .outline
+                                .withValues(alpha: 0.15),
+                            strokeWidth: 1,
+                          ),
+                        ),
+                        titlesData: FlTitlesData(
+                          leftTitles: const AxisTitles(
+                              sideTitles: SideTitles(showTitles: true, reservedSize: 36)),
+                          bottomTitles: AxisTitles(
+                            sideTitles: SideTitles(
+                              showTitles: true,
+                              getTitlesWidget: (value, meta) {
+                                final idx = value.toInt();
+                                if (idx < 0 || idx >= dateLabels.length) {
+                                  return const SizedBox.shrink();
+                                }
+                                return Text(
+                                  DateFormat('MM-dd')
+                                      .format(DateTime.parse(dateLabels[idx])),
+                                  style: const TextStyle(fontSize: 10),
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+                        borderData:
+                            FlBorderData(show: true, border: Border.all(color: Colors.transparent)),
+                        lineBarsData: [
+                          LineChartBarData(
+                            spots: _expenseSpots,
+                            isCurved: true,
+                            barWidth: 3.5,
+                            gradient: LinearGradient(
+                              colors: [
+                                Theme.of(context).colorScheme.primary,
+                                Theme.of(context)
+                                    .colorScheme
+                                    .primary
+                                    .withValues(alpha: 0.6),
+                              ],
+                            ),
+                            belowBarData: BarAreaData(
+                              show: true,
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [
+                                  Theme.of(context)
+                                      .colorScheme
+                                      .primary
+                                      .withValues(alpha: 0.25),
+                                  Colors.transparent,
+                                ],
+                              ),
+                            ),
+                            dotData: const FlDotData(show: false),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerRight,
+              child: Text('Max: ${_currencyFormat.format(maxExpense)}'),
             ),
           ],
         ),
       ),
-    );
-  }
-
-  Widget _dateFilters(BuildContext context) {
-    return InputDecorator(
-      decoration: InputDecoration(
-        contentPadding: EdgeInsets.symmetric(horizontal: 20.0, vertical: 5.0),
-        labelText: 'Select Date Range',
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(5.0)),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: TextFormField(
-              readOnly: true,
-              decoration: InputDecoration(
-                // labelText: 'From Date',
-                hintStyle: TextStyle(fontSize: 12, color: Colors.grey),
-                hintText: _fromDate == null
-                    ? 'From Date'
-                    : DateFormat('yyyy-MM-dd').format(_fromDate!),
-              ),
-              onTap: () => _selectDate(context, true),
-            ),
-          ),
-          SizedBox(width: 16),
-          Expanded(
-            child: TextFormField(
-              readOnly: true,
-              decoration: InputDecoration(
-                // labelText: 'To Date',
-                hintStyle: TextStyle(fontSize: 12, color: Colors.grey),
-                hintText: _toDate == null
-                    ? 'To Date'
-                    : DateFormat('yyyy-MM-dd').format(_toDate!),
-              ),
-              onTap: () => _selectDate(context, false),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _transactionType(BuildContext context) {
-    return InputDecorator(
-      decoration: InputDecoration(
-        contentPadding: EdgeInsets.symmetric(horizontal: 20.0, vertical: 5.0),
-        labelText: 'Transaction Type',
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(5.0)),
-      ),
-      child: Row(
-        children: [
-          // Text('Transaction Type:'),
-          SizedBox(width: 10),
-          DropdownButton<String>(
-            value: _filterOption,
-            onChanged: (String? newValue) {
-              setState(() {
-                _filterOption = newValue!;
-              });
-              _fetchTransactions();
-            },
-            items: <String>['Income', 'Expenses', 'Both']
-                .map<DropdownMenuItem<String>>((String value) {
-              return DropdownMenuItem<String>(
-                value: value,
-                child: Text(
-                  value,
-                  style: TextStyle(fontWeight: FontWeight.normal),
-                ),
-              );
-            }).toList(),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _generateDataTable(BuildContext context) {
-    if (_transactions.isEmpty) {
-      return Container();
-    }
-    return Container(
-      // padding: EdgeInsets.only(left: 10, right: 10),
-      width: double.infinity,
-      child: DataTable(
-        horizontalMargin: 15,
-        headingRowHeight: 20,
-        border: TableBorder.symmetric(
-            inside: BorderSide(width: 1, color: Colors.transparent),
-            outside: BorderSide(width: 1, color: Colors.grey)),
-        columns: [
-          // DataColumn(label: Text('Date')),
-          DataColumn(label: Text('Description')),
-          DataColumn(label: Text('Amount')),
-          // DataColumn(label: Text('Type')),
-        ],
-        rows: _transactions.map((transaction) {
-          return DataRow(cells: [
-            DataCell(
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(transaction['description']),
-                  SizedBox(height: 1),
-                  Text(
-                    transaction['transactionDate'],
-                    style: TextStyle(fontSize: 10, color: Colors.grey),
-                  ),
-                ],
-              ),
-            ),
-            // DataCell(Text(transaction['description'],
-            //     overflow: TextOverflow.ellipsis, softWrap: false)),
-            DataCell(Container(
-              alignment: Alignment.centerRight,
-              child: Text(
-                  transaction['credit'] > 0
-                      ? _currencyFormat
-                          .format(transaction['credit'])
-                          .toString()
-                          .padLeft(10, ' ')
-                      : _currencyFormat
-                          .format(transaction['debit'])
-                          .toString()
-                          .padLeft(10, ' '),
-                  style: TextStyle(
-                    color:
-                        transaction['credit'] > 0 ? Colors.green : Colors.red,
-                  )),
-            )),
-            // DataCell(Text(
-            //     transaction['credit'] > 0 ? 'Income' : 'Expenses')),
-          ]);
-        }).toList(),
-      ),
-    );
-  }
-
-  Widget _generateExpenseChart() {
-    return Column(
-      children: [
-        Text('Expenses Chart', style: TextStyle(fontWeight: FontWeight.bold)),
-        Container(
-          height: 300,
-          child: LineChart(
-            LineChartData(
-              titlesData: FlTitlesData(
-                bottomTitles: AxisTitles(
-                  sideTitles: SideTitles(
-                    showTitles: true,
-                    reservedSize: 40,
-                    getTitlesWidget: (value, meta) {
-                      int index = value.toInt();
-                      if (index >= 0 && index < dateLabels.length) {
-                        return Text(
-                          DateFormat('MM/dd').format(DateFormat('yyyy-MM-dd')
-                              .parse(dateLabels[index])),
-                          style: const TextStyle(fontSize: 10),
-                          textAlign: TextAlign.center,
-                        );
-                      }
-                      return const Text('');
-                    },
-                  ),
-                ),
-                leftTitles: AxisTitles(
-                  sideTitles: SideTitles(
-                    showTitles: true,
-                    interval: interval, // Set dynamic interval for Y-axis
-                    reservedSize: 40,
-                    getTitlesWidget: (value, meta) {
-                      return Text('${value.toInt()}',
-                          style: const TextStyle(fontSize: 10));
-                    },
-                  ),
-                ),
-                topTitles:
-                    const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                rightTitles:
-                    const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-              ),
-              gridData: FlGridData(
-                show: true,
-                drawVerticalLine: true,
-                horizontalInterval: interval,
-                getDrawingHorizontalLine: (value) {
-                  return FlLine(
-                    color: Colors.grey.withAlpha(51),
-                    strokeWidth: 1,
-                    dashArray: [5, 5],
-                  );
-                },
-              ),
-              lineBarsData: [
-                LineChartBarData(
-                  spots: _expenseSpots, // Set expense data points
-                  isCurved: true,
-                  color: Colors.redAccent,
-                  barWidth: 2,
-                  dotData: const FlDotData(
-                      show: true), // Show dots on each data point
-                  belowBarData: BarAreaData(
-                    show: true,
-                    color: Colors.redAccent
-                        .withAlpha(51), // Light red area under the curve
-                  ),
-                ),
-              ],
-              borderData: FlBorderData(
-                show: true,
-                border: Border.all(color: Colors.black.withAlpha(76)),
-              ),
-              minY: 0,
-              maxY: maxExpense +
-                  (interval * 2), // Add extra space above the highest expense
-            ),
-          ),
-        ),
-      ],
     );
   }
 }

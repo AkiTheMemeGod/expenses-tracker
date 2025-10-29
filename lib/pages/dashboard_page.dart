@@ -2,13 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../databases/database_helper.dart';
 import 'package:pie_chart/pie_chart.dart';
+import '../utils/widgets/app_bars.dart';
+import '../utils/widgets/stat_card.dart';
 
 class DashboardPage extends StatefulWidget {
+  const DashboardPage({super.key});
   @override
-  _DashboardPageState createState() => _DashboardPageState();
+  State<DashboardPage> createState() => _DashboardPageState();
 }
 
-class _DashboardPageState extends State<DashboardPage> {
+class _DashboardPageState extends State<DashboardPage> with AutomaticKeepAliveClientMixin {
   final DatabaseHelper _dbHelper = DatabaseHelper();
   List<Map<String, dynamic>> _transactions = [];
   final NumberFormat _currencyFormat =
@@ -16,10 +19,20 @@ class _DashboardPageState extends State<DashboardPage> {
   DateTime _selectedMonth = DateTime.now();
   double _totalIncome = 0.0;
   double _totalExpenses = 0.0;
+  double get _balance => _totalIncome - _totalExpenses;
+
+  @override
+  bool get wantKeepAlive => false;
 
   @override
   void initState() {
     super.initState();
+    _fetchTransactions();
+  }
+
+  @override
+  void didUpdateWidget(DashboardPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
     _fetchTransactions();
   }
 
@@ -56,22 +69,30 @@ class _DashboardPageState extends State<DashboardPage> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
+    final theme = Theme.of(context);
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Dashboard'),
-        backgroundColor: Colors.red,
-        toolbarHeight: 45,
-        foregroundColor: Colors.white,
-      ),
-      body: Container(
-        color: Colors.white,
-        child: Column(
-          children: [
-            _buildMonthSelector(),
-            _buildIncomeExpensesChart(),
-            _buildIncomesList(),
-            _buildExpensesList(),
-          ],
+      appBar: const MinimalAppBar(title: 'Dashboard'),
+      body: RefreshIndicator(
+        onRefresh: _fetchTransactions,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _buildMonthSelector(),
+              const SizedBox(height: 8),
+              // Summary stats (responsive)
+              _buildResponsiveStats(theme),
+              const SizedBox(height: 12),
+              _buildIncomeExpensesChart(),
+              const SizedBox(height: 12),
+              _buildIncomesSection(),
+              const SizedBox(height: 12),
+              _buildExpensesSection(),
+            ],
+          ),
         ),
       ),
     );
@@ -165,62 +186,49 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
-  Widget _buildExpensesList() {
-    var _expenseTransactions =
-        _transactions.where((transaction) => transaction['debit'] > 0).toList();
-    if (_expenseTransactions.isEmpty) {
-      return Container();
-    }
-    return Expanded(
-      child: SingleChildScrollView(
-        scrollDirection: Axis.vertical,
+  Widget _buildExpensesSection() {
+    var expenseTx =
+        _transactions.where((t) => (t['debit'] ?? 0) > 0).toList();
+    if (expenseTx.isEmpty) return Container();
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12.0),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text('Expenses',
+            const Text('Expenses',
                 style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
-            Container(
-              padding: EdgeInsets.only(left: 10, right: 10),
-              width: double.infinity,
-              child: DataTable(
-                horizontalMargin: 15,
-                headingRowHeight: 25,
-                border: TableBorder.symmetric(
-                    inside: BorderSide(width: 1, color: Colors.transparent),
-                    outside: BorderSide(width: 1, color: Colors.grey)),
-                columns: [
-                  DataColumn(label: Text('Description')),
-                  DataColumn(label: Text('Amount')),
-                ],
-                rows: _expenseTransactions.map((transaction) {
-                  return DataRow(cells: [
-                    // DataCell(Text(transaction['transactionDate'])),
-                    DataCell(Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(transaction['description']),
-                        SizedBox(height: 1),
-                        Text(
-                          transaction['transactionDate'],
-                          style: TextStyle(fontSize: 10, color: Colors.grey),
-                        ),
-                      ],
-                    )),
-                    DataCell(Container(
-                      alignment: Alignment.centerRight,
-                      child: Text(
-                        _currencyFormat
-                            .format(transaction['debit'])
-                            .toString()
-                            .padLeft(10, ' '),
-                        style: TextStyle(
-                          color: Colors.red,
-                        ),
+            const SizedBox(height: 8),
+            DataTable(
+              horizontalMargin: 12,
+              headingRowHeight: 28,
+              columns: const [
+                DataColumn(label: Text('Description')),
+                DataColumn(label: Text('Amount')),
+              ],
+              rows: expenseTx.map((t) {
+                return DataRow(cells: [
+                  DataCell(Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(t['description'] ?? ''),
+                      const SizedBox(height: 1),
+                      Text(
+                        t['transactionDate'] ?? '',
+                        style: const TextStyle(fontSize: 10, color: Colors.grey),
                       ),
-                    )),
-                  ]);
-                }).toList(),
-              ),
+                    ],
+                  )),
+                  DataCell(Align(
+                    alignment: Alignment.centerRight,
+                    child: Text(
+                      _currencyFormat.format(t['debit'] ?? 0),
+                      style: const TextStyle(color: Colors.red),
+                    ),
+                  )),
+                ]);
+              }).toList(),
             ),
           ],
         ),
@@ -228,64 +236,93 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
-  Widget _buildIncomesList() {
-    if (_transactions.isEmpty) {
-      return Container();
-    }
+  Widget _buildResponsiveStats(ThemeData theme) {
+    return LayoutBuilder(builder: (context, constraints) {
+      final double width = constraints.maxWidth;
+      // Determine number of columns based on available width
+      int columns = 1;
+      if (width >= 1000) {
+        columns = 3;
+      } else if (width >= 680) {
+        columns = 2;
+      }
+      const spacing = 8.0;
+      final itemWidth = (width - spacing * (columns - 1)) / columns;
 
-    var _incomeTransactions = _transactions
-        .where((transaction) => transaction['credit'] > 0)
-        .toList();
-    return Expanded(
-      child: SingleChildScrollView(
-        scrollDirection: Axis.vertical,
+      final tiles = [
+        StatCard(
+          label: 'Income',
+          amount: _totalIncome,
+          color: theme.colorScheme.tertiary,
+          icon: Icons.arrow_downward,
+        ),
+        StatCard(
+          label: 'Expenses',
+          amount: _totalExpenses,
+          color: theme.colorScheme.error,
+          icon: Icons.arrow_upward,
+        ),
+        StatCard(
+          label: 'Balance',
+          amount: _balance,
+          color: theme.colorScheme.primary,
+          icon: Icons.account_balance_wallet_outlined,
+        ),
+      ];
+
+      return Wrap(
+        spacing: spacing,
+        runSpacing: spacing,
+        children: tiles
+            .map((t) => SizedBox(width: itemWidth.clamp(220, 420), child: t))
+            .toList(),
+      );
+    });
+  }
+
+  Widget _buildIncomesSection() {
+    var incomeTx =
+        _transactions.where((t) => (t['credit'] ?? 0) > 0).toList();
+    if (incomeTx.isEmpty) return Container();
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12.0),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text('Incomes',
+            const Text('Incomes',
                 style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
-            Container(
-              padding: EdgeInsets.only(left: 10, right: 10),
-              width: double.infinity,
-              child: DataTable(
-                horizontalMargin: 15,
-                headingRowHeight: 25,
-                border: TableBorder.symmetric(
-                    inside: BorderSide(width: 1, color: Colors.transparent),
-                    outside: BorderSide(width: 1, color: Colors.grey)),
-                columns: [
-                  DataColumn(label: Text('Description')),
-                  DataColumn(label: Text('Amount')),
-                ],
-                rows: _incomeTransactions.map((transaction) {
-                  return DataRow(cells: [
-                    // DataCell(Text(transaction['transactionDate'])),
-                    DataCell(Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(transaction['description']),
-                        SizedBox(height: 1),
-                        Text(
-                          transaction['transactionDate'],
-                          style: TextStyle(fontSize: 10, color: Colors.grey),
-                        ),
-                      ],
-                    )),
-                    DataCell(Container(
-                      alignment: Alignment.centerRight,
-                      child: Text(
-                        _currencyFormat
-                            .format(transaction['credit'])
-                            .toString()
-                            .padLeft(10, ' '),
-                        style: TextStyle(
-                          color: Colors.green,
-                        ),
+            const SizedBox(height: 8),
+            DataTable(
+              horizontalMargin: 12,
+              headingRowHeight: 28,
+              columns: const [
+                DataColumn(label: Text('Description')),
+                DataColumn(label: Text('Amount')),
+              ],
+              rows: incomeTx.map((t) {
+                return DataRow(cells: [
+                  DataCell(Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(t['description'] ?? ''),
+                      const SizedBox(height: 1),
+                      Text(
+                        t['transactionDate'] ?? '',
+                        style: const TextStyle(fontSize: 10, color: Colors.grey),
                       ),
-                    )),
-                  ]);
-                }).toList(),
-              ),
+                    ],
+                  )),
+                  DataCell(Align(
+                    alignment: Alignment.centerRight,
+                    child: Text(
+                      _currencyFormat.format(t['credit'] ?? 0),
+                      style: const TextStyle(color: Colors.green),
+                    ),
+                  )),
+                ]);
+              }).toList(),
             ),
           ],
         ),
