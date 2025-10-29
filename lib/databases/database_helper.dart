@@ -408,7 +408,7 @@ class DatabaseHelper {
     JOIN
       subcategory s ON t.subCategoryId = s.subCategoryId
     ORDER BY
-      t.transactionDate DESC
+      t.transactionDate DESC, t.id DESC
   ''');
   }
 
