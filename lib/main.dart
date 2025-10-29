@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:expenses_tracker/pages/home_page.dart';
+import 'package:expenses_tracker/pages/splash_screen.dart';
 import 'package:expenses_tracker/theme/theme_controller.dart';
 
 void main() {
@@ -31,7 +32,7 @@ class MyApp extends StatelessWidget {
       animation: ThemeController.instance,
       builder: (context, _) {
         return MaterialApp(
-          title: 'Expenses Tracker',
+          title: 'SpendIt',
           debugShowCheckedModeBanner: false,
           themeMode: ThemeController.instance.mode,
           theme: ThemeData(
@@ -70,18 +71,21 @@ class MyApp extends StatelessWidget {
             inputDecorationTheme: InputDecorationTheme(
               filled: true,
               fillColor: Colors.white,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               border: baseInputBorder,
               enabledBorder: baseInputBorder,
               focusedBorder: baseInputBorder.copyWith(
-                borderSide: BorderSide(color: lightColorScheme.primary, width: 2),
+                borderSide:
+                    BorderSide(color: lightColorScheme.primary, width: 2),
               ),
               labelStyle: TextStyle(color: lightColorScheme.onSurfaceVariant),
             ),
             chipTheme: ChipThemeData(
               selectedColor: lightColorScheme.primary.withValues(alpha: 0.12),
               side: BorderSide(color: lightColorScheme.outlineVariant),
-              shape: StadiumBorder(side: BorderSide(color: lightColorScheme.outlineVariant)),
+              shape: StadiumBorder(
+                  side: BorderSide(color: lightColorScheme.outlineVariant)),
             ),
             bottomNavigationBarTheme: BottomNavigationBarThemeData(
               backgroundColor: lightColorScheme.surface,
@@ -131,11 +135,13 @@ class MyApp extends StatelessWidget {
             inputDecorationTheme: InputDecorationTheme(
               filled: true,
               fillColor: const Color(0xFF111111),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               border: baseInputBorder,
               enabledBorder: baseInputBorder,
               focusedBorder: baseInputBorder.copyWith(
-                borderSide: BorderSide(color: darkColorScheme.primary, width: 2),
+                borderSide:
+                    BorderSide(color: darkColorScheme.primary, width: 2),
               ),
               labelStyle: TextStyle(color: darkColorScheme.onSurfaceVariant),
             ),
@@ -153,7 +159,10 @@ class MyApp extends StatelessWidget {
               type: BottomNavigationBarType.fixed,
             ),
           ),
-          home: const HomePage(initialIndex: 0),
+          home: const SplashScreen(),
+          routes: {
+            '/home': (context) => const HomePage(initialIndex: 0),
+          },
         );
       },
     );
