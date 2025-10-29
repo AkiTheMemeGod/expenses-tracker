@@ -4,8 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import '../databases/subcategory.dart';
 import "../utils/string_extension.dart";
+import '../utils/widgets/app_bars.dart';
 
 class SubcategoriesPage extends StatefulWidget {
+  const SubcategoriesPage({super.key});
   @override
   State<SubcategoriesPage> createState() => _SubcategoriesPageState();
 }
@@ -33,13 +35,11 @@ class _SubcategoriesPageState extends State<SubcategoriesPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Subcategories'),
-      ),
+      appBar: const MinimalAppBar(title: 'Subcategories'),
       floatingActionButton: FloatingActionButton(
         onPressed: _addNewSubCategory,
-        backgroundColor: Colors.redAccent,
-        child: Icon(Icons.add),
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        child: const Icon(Icons.add),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.endTop,
       body: Container(
@@ -75,8 +75,8 @@ class _SubcategoriesPageState extends State<SubcategoriesPage> {
                           _selectedSubCategory = subCategories[index];
                         });
                       },
-                      backgroundColor: Colors.grey,
-                      foregroundColor: Colors.white,
+                      backgroundColor: Theme.of(context).colorScheme.primary,
+                      foregroundColor: Theme.of(context).colorScheme.onPrimary,
                       borderRadius: BorderRadius.only(
                         topLeft: Radius.circular(5),
                         bottomLeft: Radius.circular(5),
@@ -91,8 +91,8 @@ class _SubcategoriesPageState extends State<SubcategoriesPage> {
                       onPressed: (context) {
                         _confirmDelete(context, subCategories[index]);
                       },
-                      backgroundColor: Colors.red,
-                      foregroundColor: Colors.white,
+                      backgroundColor: Theme.of(context).colorScheme.error,
+                      foregroundColor: Theme.of(context).colorScheme.onError,
                       borderRadius: BorderRadius.only(
                         topRight: Radius.circular(5),
                         bottomRight: Radius.circular(5),
@@ -111,7 +111,6 @@ class _SubcategoriesPageState extends State<SubcategoriesPage> {
   }
 
   Widget _buildSubCategoryCard(subCategory) {
-    print(subCategory.subCategoryName);
     return Row(
       children: [
         SizedBox(width: 10),
@@ -138,18 +137,19 @@ class _SubcategoriesPageState extends State<SubcategoriesPage> {
     ); // Add your logic to add a new category here
   }
 
-  void saveNewSubCategory() {
-    _dbHelper.addSubCategory(
+  void saveNewSubCategory() async {
+    await _dbHelper.addSubCategory(
         1,
         _subCategoryNamecontroller.text
             .replaceAll(RegExp('[^A-Za-z0-9]'), '')
             .trim()
             .capitalize());
+    if (!mounted) return;
     _fetchSubCategories();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Subcategory added successfully!'),
-        backgroundColor: Colors.grey[800],
+        content: const Text('Subcategory added successfully!'),
+        backgroundColor: Theme.of(context).colorScheme.primary,
       ),
     );
     Navigator.of(context).pop();
@@ -178,11 +178,12 @@ class _SubcategoriesPageState extends State<SubcategoriesPage> {
             .replaceAll(RegExp('[^A-Za-z0-9]'), '')
             .trim()
             .capitalize());
+    if (!mounted) return;
     _fetchSubCategories();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Subcategory updated successfully!'),
-        backgroundColor: Colors.grey[800],
+        content: const Text('Subcategory updated successfully!'),
+        backgroundColor: Theme.of(context).colorScheme.primary,
       ),
     );
     Navigator.of(context).pop();
@@ -218,11 +219,12 @@ class _SubcategoriesPageState extends State<SubcategoriesPage> {
 
   void _deleteSubCategory(BuildContext context, int subCategoryId) async {
     await _dbHelper.deleteSubCategory(subCategoryId);
+    if (!mounted) return;
     _fetchSubCategories();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('SubCategory deleted successfully!'),
-        backgroundColor: Colors.grey,
+        content: const Text('SubCategory deleted successfully!'),
+        backgroundColor: Theme.of(context).colorScheme.primary,
       ),
     );
   }
