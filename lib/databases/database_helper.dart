@@ -1,4 +1,8 @@
+import 'dart:io';
+
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:sqflite/sqflite.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:path/path.dart';
 import 'category.dart';
 import 'subcategory.dart';
@@ -20,8 +24,13 @@ class DatabaseHelper {
   }
 
   Future<Database> _initDatabase() async {
+    // Enable FFI-based SQLite for desktop platforms
+    if (!kIsWeb && (Platform.isLinux || Platform.isWindows || Platform.isMacOS)) {
+      sqfliteFfiInit();
+      databaseFactory = databaseFactoryFfi;
+    }
+
     String path = join(await getDatabasesPath(), 'expensestracker.db');
-    print(path);
 
     return await openDatabase(
       path,
@@ -478,8 +487,9 @@ class DatabaseHelper {
   Future<int> updateCategory(int categoryId, String categoryName) async {
     Database db = await database;
 
-    return await db.rawInsert("UPDATE category SET categoryName='$categoryName'"
-        " WHERE categoryId=+$categoryId");
+    return await db.rawUpdate(
+        "UPDATE category SET categoryName=? WHERE categoryId=?",
+        [categoryName, categoryId]);
   }
 
   /// Delete a category and all its transactions and subcategories
