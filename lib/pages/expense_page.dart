@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../databases/database_helper.dart';
 import '../utils/widgets/app_bars.dart';
 import '../utils/widgets/primary_button.dart';
+import '../utils/intent_bridge.dart';
 
 class ExpensePage extends StatefulWidget {
   final Map<String, dynamic>? expense;
@@ -69,6 +70,10 @@ class _ExpensePageState extends State<ExpensePage> {
     }
 
     _amountController.text = _amount.toString();
+
+    // Try prefill from Android widget intent
+    _prefillFromIntent();
+
     _amountFocusNode.addListener(() {
       if (_amountFocusNode.hasFocus) {
         _amountController.selection = TextSelection(
@@ -88,6 +93,27 @@ class _ExpensePageState extends State<ExpensePage> {
     _descriptionController.dispose();
     _amountFocusNode.dispose();
     super.dispose();
+  }
+
+  Future<void> _prefillFromIntent() async {
+    final extras = await IntentBridge.getExtras();
+    if (!mounted || widget.expense != null) return;
+    final type = (extras['type'] ?? '').toString();
+    final amountStr = (extras['amount'] ?? '').toString();
+    if (type == 'Income' || type == 'Expense') {
+      setState(() {
+        _transactionType = type;
+      });
+    }
+    if (amountStr.isNotEmpty) {
+      final parsed = double.tryParse(amountStr);
+      if (parsed != null) {
+        setState(() {
+          _amount = parsed;
+          _amountController.text = parsed.toStringAsFixed(2);
+        });
+      }
+    }
   }
 
   // load categories on page load
