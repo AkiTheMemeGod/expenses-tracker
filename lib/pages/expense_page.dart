@@ -1,16 +1,17 @@
 import 'package:expenses_tracker/pages/home_page.dart';
-import 'package:expenses_tracker/pages/transactions_page.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../databases/database_helper.dart';
+import '../utils/widgets/app_bars.dart';
+import '../utils/widgets/primary_button.dart';
 
 class ExpensePage extends StatefulWidget {
   final Map<String, dynamic>? expense;
 
-  ExpensePage({this.expense});
+  const ExpensePage({super.key, this.expense});
 
   @override
-  _ExpensePageState createState() => _ExpensePageState();
+  State<ExpensePage> createState() => _ExpensePageState();
 }
 
 class _ExpensePageState extends State<ExpensePage> {
@@ -24,9 +25,13 @@ class _ExpensePageState extends State<ExpensePage> {
   late String _paymentMethod;
   int? _selectedCategory;
   int? _selectedSubcategory;
+  final List<String> _paymentMethods = const ['Bank', 'Cash', 'Card', 'UPI'];
 
   List<Map<String, dynamic>> _categories = [];
   List<Map<String, dynamic>> _subcategories = [];
+  bool _isLoadingCategories = true;
+  bool _isLoadingSubcategories = false;
+  String? _loadError;
 
   TextEditingController _dateController = TextEditingController();
   TextEditingController _amountController = TextEditingController();
@@ -87,24 +92,55 @@ class _ExpensePageState extends State<ExpensePage> {
 
   // load categories on page load
   void _loadCategories() async {
-    List<Map<String, dynamic>> categories = await _dbHelper.getCategories();
-    setState(() {
-      _categories = categories;
-    });
+    try {
+      final categories = await _dbHelper.getCategories().timeout(const Duration(seconds: 5));
+      if (!mounted) return;
+      setState(() {
+        _categories = categories;
+        _isLoadingCategories = false;
+        _loadError = null;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isLoadingCategories = false;
+        _loadError = 'Failed to load categories';
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Unable to load categories. Please try again.')),
+      );
+    }
   }
 
   // load subcategories based on the selected category
   void _loadSubcategories(int categoryId) async {
-    List<Map<String, dynamic>> subcategories =
-        await _dbHelper.getSubcategories(categoryId);
     setState(() {
-      _subcategories = subcategories;
+      _isLoadingSubcategories = true;
+      _subcategories = [];
     });
+    try {
+      final subcategories = await _dbHelper.getSubcategories(categoryId).timeout(const Duration(seconds: 5));
+      if (!mounted) return;
+      setState(() {
+        _subcategories = subcategories;
+        _isLoadingSubcategories = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isLoadingSubcategories = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Unable to load subcategories. Please try again.')),
+      );
+    }
   }
 
   void _submitForm() async {
     if (_formKey.currentState!.validate()) {
       _formKey.currentState!.save();
+      final navigator = Navigator.of(context);
+      final messenger = ScaffoldMessenger.of(context);
       Map<String, dynamic> expense = {
         'userId': 1, // as this is a single user app
         'transactionDate': _date,
@@ -119,19 +155,21 @@ class _ExpensePageState extends State<ExpensePage> {
         // Update existing expense
         expense['id'] = widget.expense!['id'];
         await _dbHelper.updateExpense(expense);
-        ScaffoldMessenger.of(context).showSnackBar(
+        if (!mounted) return;
+        messenger.showSnackBar(
           SnackBar(
-            content: Text('Transaction updated successfully!'),
-            backgroundColor: Colors.grey[800],
+            content: const Text('Transaction updated successfully!'),
+            backgroundColor: Theme.of(context).colorScheme.primary,
           ),
         );
       } else {
         // Insert new expense
         await _dbHelper.insertExpense(expense);
-        ScaffoldMessenger.of(context).showSnackBar(
+        if (!mounted) return;
+        messenger.showSnackBar(
           SnackBar(
-            content: Text('Transaction added successfully!'),
-            backgroundColor: Colors.green[800],
+            content: const Text('Transaction added successfully!'),
+            backgroundColor: Theme.of(context).colorScheme.primary,
           ),
         );
       }
@@ -149,13 +187,9 @@ class _ExpensePageState extends State<ExpensePage> {
       });
 
       // Redirect to TransactionsPage
-      Navigator.pushReplacement(
-        context,
+      navigator.pushReplacement(
         MaterialPageRoute(
-          builder: (context) => HomePage(
-            body: TransactionsPage(),
-            currentIndex: 3,
-          ),
+          builder: (context) => const HomePage(initialIndex: 3),
         ),
       );
     }
@@ -180,273 +214,165 @@ class _ExpensePageState extends State<ExpensePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       resizeToAvoidBottomInset: false,
-      appBar: AppBar(
-        title: Text(
-            widget.expense != null ? 'Edit Transaction' : 'Add Transaction'),
-        // backgroundColor: Colors.grey[200],
-        backgroundColor: Colors.red,
-        toolbarHeight: 45,
-        foregroundColor: Colors.white,
+      appBar: MinimalAppBar(
+        title: widget.expense != null ? 'Edit Transaction' : 'Add Transaction',
       ),
-      body: SingleChildScrollView(
-        physics: NeverScrollableScrollPhysics(),
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            minWidth: MediaQuery.of(context).size.width,
-            minHeight: MediaQuery.of(context).size.height,
-          ),
-          child: Container(
-            color: Colors.grey[200],
-            child: IntrinsicHeight(
-              child: Form(
-                key: _formKey,
-                child: Padding(
-                  padding: EdgeInsets.all(16.0),
-                  child: Column(
-                    children: <Widget>[
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.start,
-                        children: <Widget>[
-                          Expanded(
-                            child: ListTile(
-                              dense: true,
-                              contentPadding: EdgeInsets.symmetric(
-                                  horizontal: 0.0, vertical: 0.0),
-                              title: const Text(
-                                'Income',
-                                style: TextStyle(
-                                  fontSize: 15,
-                                ),
-                              ),
-                              leading: Radio<String>(
-                                value: 'Income',
-                                groupValue: _transactionType,
-                                onChanged: (String? value) {
-                                  _selectedCategory = null;
-                                  _selectedSubcategory = null;
-                                  setState(() {
-                                    _transactionType = value!;
-                                  });
-                                },
-                              ),
-                            ),
-                          ),
-                          Expanded(
-                            child: ListTile(
-                              dense: true,
-                              contentPadding: EdgeInsets.symmetric(
-                                  horizontal: 0.0, vertical: 0.0),
-                              title: const Text('Expense',
-                                  style: TextStyle(fontSize: 15)),
-                              leading: Radio<String>(
-                                value: 'Expense',
-                                groupValue: _transactionType,
-                                onChanged: (String? value) {
-                                  setState(() {
-                                    _transactionType = value!;
-                                  });
-                                },
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      InputDecorator(
-                        decoration: InputDecoration(
-                          contentPadding: EdgeInsets.symmetric(
-                              horizontal: 20.0, vertical: 3.0),
-                          labelText: 'Transaction Detail',
-                          border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(5.0)),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16.0),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(
+                maxWidth: 540,
+              ),
+              child: Card(
+                child: Form(
+                  key: _formKey,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: <Widget>[
+                        SegmentedButton<String>(
+                          segments: const [
+                            ButtonSegment(value: 'Income', label: Text('Income'), icon: Icon(Icons.south_west)),
+                            ButtonSegment(value: 'Expense', label: Text('Expense'), icon: Icon(Icons.north_east)),
+                          ],
+                          selected: {_transactionType},
+                          onSelectionChanged: (s) {
+                            setState(() {
+                              _transactionType = s.first;
+                              _selectedCategory = null;
+                              _selectedSubcategory = null;
+                            });
+                          },
                         ),
-                        child: TextFormField(
+                        const SizedBox(height: 12),
+                        TextFormField(
                           controller: _descriptionController,
-                          // decoration:
-                          //     InputDecoration(labelText: 'Transaction Detail'),
+                          decoration: const InputDecoration(
+                            labelText: 'Transaction Detail',
+                            prefixIcon: Icon(Icons.text_fields),
+                          ),
                           validator: (value) {
-                            if (value!.isEmpty) {
+                            if (value == null || value.isEmpty) {
                               return 'Please enter the detail.';
                             }
                             return null;
                           },
-                          onSaved: (value) {
-                            _name = value!;
-                          },
+                          onSaved: (value) => _name = value!,
                         ),
-                      ),
-                      SizedBox(height: 10),
-                      InputDecorator(
-                        decoration: InputDecoration(
-                          contentPadding: EdgeInsets.symmetric(
-                              horizontal: 20.0, vertical: 0),
-                          labelText: 'Category',
-                          border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(5.0)),
-                        ),
-                        child: DropdownButtonFormField<int>(
-                          value: _selectedCategory,
-                          decoration: InputDecoration(labelText: 'select'),
-                          items: _categories.map((category) {
-                            return DropdownMenuItem<int>(
-                              value: category['categoryId'],
-                              child: Text(category['categoryName']),
-                            );
-                          }).toList(),
-                          onChanged: (int? newValue) {
-                            setState(() {
-                              _selectedCategory = newValue!;
-                              _selectedSubcategory = null;
-                              _loadSubcategories(newValue);
-                            });
-                          },
-                          validator: (value) {
-                            if (value == null) {
-                              return 'Please select a category.';
-                            }
-                            return null;
-                          },
-                          onSaved: (value) {
-                            _selectedCategory = value;
-                          },
-                        ),
-                      ),
-                      SizedBox(height: 10),
-                      InputDecorator(
-                        decoration: InputDecoration(
-                          contentPadding: EdgeInsets.symmetric(
-                              horizontal: 20.0, vertical: 0),
-                          labelText: 'Sub Category',
-                          border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(5.0)),
-                        ),
-                        child: DropdownButtonFormField<int>(
-                          value: _selectedSubcategory,
-                          decoration: InputDecoration(labelText: 'select'),
-                          items: _subcategories.map((subcategory) {
-                            return DropdownMenuItem<int>(
-                              value: subcategory['subCategoryId'],
-                              child: Text(subcategory['subCategoryName']),
-                            );
-                          }).toList(),
-                          onChanged: (int? newValue) {
-                            setState(() {
-                              _selectedSubcategory = newValue!;
-                            });
-                          },
-                          validator: (value) {
-                            if (value == null) {
-                              return 'Please select a subcategory.';
-                            }
-                            return null;
-                          },
-                          onSaved: (value) {
-                            _selectedSubcategory = value;
-                          },
-                        ),
-                      ),
-                      SizedBox(height: 10),
-                      InputDecorator(
-                        decoration: InputDecoration(
-                          contentPadding: EdgeInsets.symmetric(
-                              horizontal: 20.0, vertical: 3),
-                          labelText: 'Amount',
-                          border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(5.0)),
-                        ),
-                        child: TextFormField(
+                        const SizedBox(height: 12),
+                        if (_isLoadingCategories)
+                          const LinearProgressIndicator(minHeight: 2)
+                        else if (_loadError != null)
+                          Text(
+                            _loadError!,
+                            style: TextStyle(color: Theme.of(context).colorScheme.error),
+                          )
+                        else
+                          DropdownButtonFormField<int>(
+                            isExpanded: true,
+                            value: _selectedCategory,
+                            menuMaxHeight: 360,
+                            decoration: const InputDecoration(
+                              labelText: 'Category',
+                              prefixIcon: Icon(Icons.category_outlined),
+                            ),
+                            items: _categories.map((category) {
+                              return DropdownMenuItem<int>(
+                                value: category['categoryId'] as int,
+                                child: Text(category['categoryName'] as String),
+                              );
+                            }).toList(),
+                            onChanged: (int? newValue) {
+                              setState(() {
+                                _selectedCategory = newValue;
+                                _selectedSubcategory = null;
+                              });
+                              if (newValue != null) {
+                                _loadSubcategories(newValue);
+                              }
+                            },
+                            validator: (value) => value == null ? 'Please select a category.' : null,
+                            onSaved: (value) => _selectedCategory = value,
+                          ),
+                        const SizedBox(height: 12),
+                        if (_selectedCategory == null)
+                          const Text('Select a category first')
+                        else if (_isLoadingSubcategories)
+                          const LinearProgressIndicator(minHeight: 2)
+                        else
+                          DropdownButtonFormField<int>(
+                            isExpanded: true,
+                            value: _selectedSubcategory,
+                            menuMaxHeight: 360,
+                            decoration: const InputDecoration(
+                              labelText: 'Subcategory',
+                              prefixIcon: Icon(Icons.label_outline),
+                            ),
+                            items: _subcategories.map((subcategory) {
+                              return DropdownMenuItem<int>(
+                                value: subcategory['subCategoryId'] as int,
+                                child: Text(subcategory['subCategoryName'] as String),
+                              );
+                            }).toList(),
+                            onChanged: (int? newValue) => setState(() => _selectedSubcategory = newValue),
+                            validator: (value) => value == null ? 'Please select a subcategory.' : null,
+                            onSaved: (value) => _selectedSubcategory = value,
+                          ),
+                        const SizedBox(height: 12),
+                        TextFormField(
                           controller: _amountController,
                           focusNode: _amountFocusNode,
-                          // decoration: InputDecoration(
-                          //   labelText: 'Amount',
-                          // ),
+                          decoration: const InputDecoration(
+                            labelText: 'Amount',
+                            prefixIcon: Icon(Icons.currency_rupee),
+                          ),
                           keyboardType: TextInputType.number,
-                          // initialValue: _amount.toString(),
-                          validator: (value) {
-                            if (value!.isEmpty) {
-                              return 'Please enter an amount.';
-                            }
-                            return null;
-                          },
-                          onSaved: (value) {
-                            _amount = double.parse(value!);
-                          },
+                          validator: (value) => (value == null || value.isEmpty) ? 'Please enter an amount.' : null,
+                          onSaved: (value) => _amount = double.parse(value!),
                         ),
-                      ),
-                      SizedBox(height: 10),
-                      InputDecorator(
-                        decoration: InputDecoration(
-                          contentPadding: EdgeInsets.symmetric(
-                              horizontal: 20.0, vertical: 3),
-                          labelText: 'Date',
-                          border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(5.0)),
-                        ),
-                        child: TextFormField(
+                        const SizedBox(height: 12),
+                        TextFormField(
                           controller: _dateController,
-                          // decoration: InputDecoration(labelText: 'select'),
                           readOnly: true,
+                          decoration: const InputDecoration(
+                            labelText: 'Date',
+                            prefixIcon: Icon(Icons.event),
+                          ),
                           onTap: () => _selectDate(context),
-                          validator: (value) {
-                            if (value!.isEmpty) {
-                              return 'Select date.';
-                            }
-                            return null;
-                          },
-                          onSaved: (value) {
-                            _date = value!;
-                          },
+                          validator: (value) => (value == null || value.isEmpty) ? 'Select date.' : null,
+                          onSaved: (value) => _date = value!,
                         ),
-                      ),
-                      SizedBox(height: 10),
-                      InputDecorator(
-                        decoration: InputDecoration(
-                          contentPadding: EdgeInsets.symmetric(
-                              horizontal: 20.0, vertical: 0),
-                          labelText: 'Payment Method',
-                          border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(5.0)),
-                        ),
-                        child: DropdownButtonFormField<String>(
-                          value: _paymentMethod,
-                          // decoration:
-                          //     InputDecoration(labelText: 'Payment Method'),
-                          items: ['Bank', 'Cash', 'Card', 'UPI']
-                              .map((String method) {
-                            return DropdownMenuItem<String>(
-                              value: method,
-                              child: Text(method),
+                        const SizedBox(height: 12),
+                        Text('Payment Method', style: Theme.of(context).textTheme.labelLarge),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          children: _paymentMethods.map((m) {
+                            final selected = _paymentMethod == m;
+                            return ChoiceChip(
+                              label: Text(m),
+                              selected: selected,
+                              onSelected: (_) => setState(() => _paymentMethod = m),
                             );
                           }).toList(),
-                          onChanged: (String? newValue) {
-                            setState(() {
-                              _paymentMethod = newValue!;
-                            });
-                          },
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Please select a payment method.';
-                            }
-                            return null;
-                          },
-                          onSaved: (value) {
-                            _paymentMethod = value!;
-                          },
                         ),
-                      ),
-                      SizedBox(height: 20),
-                      ElevatedButton(
-                        onPressed: _submitForm,
-                        child: Text(widget.expense != null
-                            ? 'Save Transaction'
-                            : 'Add Transaction'),
-                      ),
-                    ],
+                        const SizedBox(height: 16),
+                        PrimaryButton(
+                          onPressed: _submitForm,
+                          text: widget.expense != null ? 'Save Transaction' : 'Add Transaction',
+                          icon: Icons.check,
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
-            ),
           ),
         ),
+      ),
       ),
     );
   }
