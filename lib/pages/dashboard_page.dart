@@ -11,7 +11,7 @@ class DashboardPage extends StatefulWidget {
   State<DashboardPage> createState() => _DashboardPageState();
 }
 
-class _DashboardPageState extends State<DashboardPage> {
+class _DashboardPageState extends State<DashboardPage> with AutomaticKeepAliveClientMixin {
   final DatabaseHelper _dbHelper = DatabaseHelper();
   List<Map<String, dynamic>> _transactions = [];
   final NumberFormat _currencyFormat =
@@ -22,8 +22,17 @@ class _DashboardPageState extends State<DashboardPage> {
   double get _balance => _totalIncome - _totalExpenses;
 
   @override
+  bool get wantKeepAlive => false;
+
+  @override
   void initState() {
     super.initState();
+    _fetchTransactions();
+  }
+
+  @override
+  void didUpdateWidget(DashboardPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
     _fetchTransactions();
   }
 
@@ -60,25 +69,30 @@ class _DashboardPageState extends State<DashboardPage> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final theme = Theme.of(context);
     return Scaffold(
       appBar: const MinimalAppBar(title: 'Dashboard'),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _buildMonthSelector(),
-            const SizedBox(height: 8),
-            // Summary stats (responsive)
-            _buildResponsiveStats(theme),
-            const SizedBox(height: 12),
-            _buildIncomeExpensesChart(),
-            const SizedBox(height: 12),
-            _buildIncomesSection(),
-            const SizedBox(height: 12),
-            _buildExpensesSection(),
-          ],
+      body: RefreshIndicator(
+        onRefresh: _fetchTransactions,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _buildMonthSelector(),
+              const SizedBox(height: 8),
+              // Summary stats (responsive)
+              _buildResponsiveStats(theme),
+              const SizedBox(height: 12),
+              _buildIncomeExpensesChart(),
+              const SizedBox(height: 12),
+              _buildIncomesSection(),
+              const SizedBox(height: 12),
+              _buildExpensesSection(),
+            ],
+          ),
         ),
       ),
     );
