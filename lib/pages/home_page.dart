@@ -4,6 +4,7 @@ import 'package:expenses_tracker/pages/reports_page.dart';
 import 'package:expenses_tracker/pages/expense_page.dart';
 import 'package:expenses_tracker/pages/transactions_page.dart';
 import 'package:expenses_tracker/pages/settings_page.dart';
+import 'package:expenses_tracker/utils/intent_bridge.dart';
 
 class HomePage extends StatefulWidget {
   final int initialIndex;
@@ -15,23 +16,39 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   late int _selectedIndex;
+  Key _dashboardKey = UniqueKey();
 
-  final List<Widget> _children = [
-    const DashboardPage(),
-    const ReportsPage(),
-    ExpensePage(),
-    const TransactionsPage(),
-    const SettingsPage(),
-  ];
+  List<Widget> _buildChildren() {
+    return [
+      DashboardPage(key: _dashboardKey),
+      const ReportsPage(),
+      ExpensePage(),
+      const TransactionsPage(),
+      const SettingsPage(),
+    ];
+  }
 
   @override
   void initState() {
     super.initState();
     _selectedIndex = widget.initialIndex;
+    _maybeNavigateFromIntent();
+  }
+
+  Future<void> _maybeNavigateFromIntent() async {
+    final extras = await IntentBridge.getExtras();
+    if (!mounted) return;
+    if ((extras['navigate'] ?? '') == 'add_transaction') {
+      setState(() => _selectedIndex = 2);
+    }
   }
 
   void _onItemTapped(int index) {
     setState(() {
+      // Refresh dashboard when navigating to it
+      if (index == 0 && _selectedIndex != 0) {
+        _dashboardKey = UniqueKey();
+      }
       _selectedIndex = index;
     });
   }
@@ -42,7 +59,7 @@ class _HomePageState extends State<HomePage> {
     return Scaffold(
       body: IndexedStack(
         index: _selectedIndex,
-        children: _children,
+        children: _buildChildren(),
       ),
       bottomNavigationBar: BottomNavigationBar(
         items: const <BottomNavigationBarItem>[
