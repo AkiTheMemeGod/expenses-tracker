@@ -6,79 +6,77 @@ import 'package:expenses_tracker/pages/transactions_page.dart';
 import 'package:expenses_tracker/pages/settings_page.dart';
 
 class HomePage extends StatefulWidget {
-  final Widget body;
-  final int currentIndex;
-
-  HomePage({required this.body, required this.currentIndex});
+  final int initialIndex;
+  const HomePage({super.key, this.initialIndex = 0});
 
   @override
-  _HomePageState createState() => _HomePageState();
+  State<HomePage> createState() => _HomePageState();
 }
 
 class _HomePageState extends State<HomePage> {
-  int _selectedIndex = 0;
+  late int _selectedIndex;
 
   final List<Widget> _children = [
-    DashboardPage(), //0
-    ReportsPage(), //1
-    ExpensePage(), //2
-    TransactionsPage(), //3
-    SettingsPage(), //4
+    const DashboardPage(),
+    const ReportsPage(),
+    ExpensePage(),
+    const TransactionsPage(),
+    const SettingsPage(),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedIndex = widget.initialIndex;
+  }
 
   void _onItemTapped(int index) {
     setState(() {
       _selectedIndex = index;
     });
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (context) => HomePage(
-          body: _children[index],
-          currentIndex: index,
-        ),
-      ),
-    );
   }
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Scaffold(
-      // appBar: AppBar(
-      //   title: Text('Expenses Tracker'),
-      //   backgroundColor: Colors.red,
-      //   foregroundColor: Colors.white,
-      // ),
-      body: widget.body,
+      body: IndexedStack(
+        index: _selectedIndex,
+        children: _children,
+      ),
       bottomNavigationBar: BottomNavigationBar(
         items: const <BottomNavigationBarItem>[
           BottomNavigationBarItem(
-            icon: Icon(Icons.dashboard),
+            icon: Icon(Icons.dashboard_outlined),
+            activeIcon: Icon(Icons.dashboard),
             label: 'Home',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.view_kanban),
+            icon: Icon(Icons.query_stats_outlined),
+            activeIcon: Icon(Icons.query_stats),
             label: 'Reports',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.add),
-            label: 'Add New',
+            icon: Icon(Icons.add_circle_outline),
+            activeIcon: Icon(Icons.add_circle),
+            label: 'Add',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.list),
+            icon: Icon(Icons.list_alt_outlined),
+            activeIcon: Icon(Icons.list_alt),
             label: 'Transactions',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.settings),
+            icon: Icon(Icons.settings_outlined),
+            activeIcon: Icon(Icons.settings),
             label: 'Settings',
           ),
         ],
-        currentIndex: widget.currentIndex,
-        selectedItemColor: Colors.white,
-        showUnselectedLabels: true, // show all the labels
+        currentIndex: _selectedIndex,
+        selectedItemColor: theme.bottomNavigationBarTheme.selectedItemColor,
+        unselectedItemColor: theme.bottomNavigationBarTheme.unselectedItemColor,
+        showUnselectedLabels: true,
         type: BottomNavigationBarType.fixed,
-        backgroundColor: Colors.red,
-        unselectedItemColor: Colors.amber[800],
         onTap: _onItemTapped,
       ),
     );
