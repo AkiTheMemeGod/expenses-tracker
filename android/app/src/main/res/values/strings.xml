@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">SpendIt</string>
+    <string name="widget_description">Quick access to add expenses or income</string>
+</resources>
